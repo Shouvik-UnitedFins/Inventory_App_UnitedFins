@@ -18,10 +18,11 @@ class VendorSerializer(serializers.ModelSerializer):
         return value
 
     def validate_GSTN(self, value):
-        # Updated GSTN pattern to be more flexible
-        GSTN_REGEX = r'^[0-9]{2}[A-Z]{3,5}[0-9A-Z]{1,4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$'
+        # Updated GSTN pattern for Indian GSTN format: 15 characters
+        # Format: 2 digits (state) + 10 characters (PAN) + 1 digit (entity) + 1 character (check) + 1 character (default Z)
+        GSTN_REGEX = r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$'
         if value and not re.match(GSTN_REGEX, value):
-            raise serializers.ValidationError("GSTN must be a valid Indian GSTN number.")
+            raise serializers.ValidationError("GSTN must be a valid 15-character Indian GSTN number (Format: 22AAAAA0000A1Z5).")
         return value
 
     def validate_rating(self, value):

@@ -23,31 +23,64 @@ class VendorViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAdminUser]  # Only admin can access
     lookup_field = 'uuid'
 
+    def list(self, request, *args, **kwargs):
+        """List all vendors with beautiful response format."""
+        response = super().list(request, *args, **kwargs)
+        return Response({
+            'success': True,
+            'message': 'Vendors retrieved successfully',
+            'count': len(response.data),
+            'vendors': response.data
+        }, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, *args, **kwargs):
+        """Retrieve a single vendor with beautiful response format."""
+        response = super().retrieve(request, *args, **kwargs)
+        return Response({
+            'success': True,
+            'message': 'Vendor retrieved successfully',
+            'vendor': response.data
+        }, status=status.HTTP_200_OK)
+
     def create(self, request, *args, **kwargs):
+        """Create vendor with beautiful response format."""
         response = super().create(request, *args, **kwargs)
         return Response({
+            'success': True,
             'message': 'Vendor created successfully',
-            'data': response.data
-        }, status=response.status_code)
+            'vendor': response.data
+        }, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
+        """Update vendor with beautiful response format."""
         response = super().update(request, *args, **kwargs)
         return Response({
+            'success': True,
             'message': 'Vendor updated successfully',
-            'data': response.data
-        }, status=response.status_code)
+            'vendor': response.data
+        }, status=status.HTTP_200_OK)
 
     def partial_update(self, request, *args, **kwargs):
+        """Partial update vendor with beautiful response format."""
         response = super().partial_update(request, *args, **kwargs)
         return Response({
+            'success': True,
             'message': 'Vendor updated successfully',
-            'data': response.data
-        }, status=response.status_code)
+            'vendor': response.data
+        }, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
+        """Delete vendor with beautiful response format."""
         try:
             instance = self.get_object()
+            vendor_name = instance.vendorName
             super().destroy(request, *args, **kwargs)
-            return Response({'message': 'Vendor deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+            return Response({
+                'success': True,
+                'message': f'Vendor "{vendor_name}" deleted successfully'
+            }, status=status.HTTP_200_OK)
         except NotFound:
-            return Response({'message': 'Vendor not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                'success': False,
+                'message': 'Vendor not found'
+            }, status=status.HTTP_404_NOT_FOUND)
