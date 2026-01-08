@@ -45,10 +45,15 @@ class UserProfile(models.Model):
 		("requester", "Requester"),
 		("vendor", "Vendor"),
 	]
+
 	import uuid
 	uuid = models.UUIDField(default=uuid.uuid4, editable=False)
 	user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
 	role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+	name = models.CharField(max_length=100, blank=True)
+	phone_number = models.CharField(max_length=20, blank=True)
+	latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+	longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
 	def __str__(self):
 		return f"{self.user.email} ({self.get_role_display()})"

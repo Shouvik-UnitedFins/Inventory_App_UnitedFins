@@ -1,3 +1,10 @@
+from drf_spectacular.utils import extend_schema
+from rest_framework_simplejwt.views import TokenRefreshView
+
+# Custom TokenRefreshView for Swagger grouping
+@extend_schema(tags=["Token"], description="Obtain a new access token using a valid refresh token.")
+class CustomTokenRefreshView(TokenRefreshView):
+	pass
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import EmailTokenObtainPairSerializer
 
@@ -5,6 +12,9 @@ from .serializers import EmailTokenObtainPairSerializer
 from rest_framework.response import Response
 from rest_framework import status
 
+from drf_spectacular.utils import extend_schema
+
+@extend_schema(tags=["Auth"])
 class EmailTokenObtainPairView(TokenObtainPairView):
 	serializer_class = EmailTokenObtainPairSerializer
 
@@ -44,7 +54,7 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 	queryset = get_user_model().objects.all()
 	serializer_class = UserDetailSerializer
 	permission_classes = [IsAuthenticated]
-	lookup_field = 'profile__uuid'
+	lookup_field = 'id'
 
 	def get_queryset(self):
 		"""Filter users based on role query parameter and user permissions"""
@@ -144,6 +154,7 @@ from rest_framework import serializers
 class LogoutSerializer(serializers.Serializer):
 	refresh = serializers.CharField()
 
+@extend_schema(tags=["Auth"])
 class LogoutView(GenericAPIView):
 	permission_classes = [IsAuthenticated]
 	serializer_class = LogoutSerializer
@@ -161,6 +172,7 @@ class LogoutView(GenericAPIView):
 
 from .serializers import UserDetailSerializer
 # Get logged-in user API
+@extend_schema(tags=["Auth"])
 class MeView(GenericAPIView):
 	permission_classes = [IsAuthenticated]
 	serializer_class = UserDetailSerializer
@@ -178,9 +190,14 @@ from .models import UserProfile
 from .serializers import UserRegistrationSerializer
 
 class IsAdminUserCustom(permissions.BasePermission):
-	def has_permission(self, request, view):
-		return request.user.is_authenticated and hasattr(request.user, 'profile') and request.user.profile.role == 'admin'
+	       def has_permission(self, request, view):
+		       return (
+			   request.user.is_authenticated and 
+			   hasattr(request.user, 'profile') and 
+			   request.user.profile.role in ['admin', 'super_admin']
+		       )
 
+@extend_schema(tags=["Auth"])
 class UserRegistrationView(generics.CreateAPIView):
 	from django.contrib.auth import get_user_model
 	queryset = get_user_model().objects.all()

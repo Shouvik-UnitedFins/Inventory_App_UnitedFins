@@ -48,30 +48,54 @@ class UserPasswordSerializer(serializers.Serializer):
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    role = serializers.ChoiceField(choices=UserProfile.ROLE_CHOICES, write_only=True)
+
+    name = serializers.CharField(write_only=True)
+    email = serializers.EmailField(write_only=True)
+    phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True)
+    role = serializers.ChoiceField(choices=UserProfile.ROLE_CHOICES, write_only=True)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
+
 
     class Meta:
         model = User
-        fields = ('password', 'email', 'role')
+        fields = ('name', 'email', 'phone_number', 'password', 'role', 'latitude', 'longitude')
 
     def create(self, validated_data):
         role = validated_data.pop('role')
         password = validated_data.pop('password')
+        name = validated_data.pop('name', '')
+        phone_number = validated_data.pop('phone_number', '')
+        latitude = validated_data.pop('latitude', None)
+        longitude = validated_data.pop('longitude', None)
         user = User.objects.create(email=validated_data['email'])
         user.set_password(password)
         user.save()
-        UserProfile.objects.create(user=user, role=role)
+        profile = UserProfile.objects.create(user=user, role=role)
+        # Optionally save extra fields to profile if you add them to the model
+        if hasattr(profile, 'name'):
+            profile.name = name
+        if hasattr(profile, 'phone_number'):
+            profile.phone_number = phone_number
+        if hasattr(profile, 'latitude'):
+            profile.latitude = latitude
+        if hasattr(profile, 'longitude'):
+            profile.longitude = longitude
+        profile.save()
         return user
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Add role and uuid from profile if it exists
         profile = getattr(instance, 'profile', None)
         if profile:
             data['role'] = profile.role
             data['uuid'] = str(profile.uuid)
+            data['latitude'] = profile.latitude
+            data['longitude'] = profile.longitude
         else:
             data['role'] = None
             data['uuid'] = None
+            data['latitude'] = None
+            data['longitude'] = None
         return data
