@@ -7,6 +7,9 @@ from .views import CustomTokenRefreshView
 
 
 from rest_framework.routers import SimpleRouter
+
+# Use a router that supports UUIDs in the path
+from rest_framework.routers import SimpleRouter
 router = SimpleRouter()
 router.register(r'users', UserViewSet, basename='user')
 

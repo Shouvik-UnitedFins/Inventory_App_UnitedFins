@@ -1,5 +1,6 @@
 # Ensure Django uses the correct backend for custom user model (email-based login)
 AUTHENTICATION_BACKENDS = [
+    'users.auth_backend.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 # Custom user model for email-based authentication
@@ -60,6 +61,7 @@ INSTALLED_APPS = [
     'products',
     'inventory',
     'vendors',
+    'categories',
     'rest_framework',
     'drf_spectacular',
 ]

@@ -7,16 +7,43 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'email'
 
     def validate(self, attrs):
-        data = super().validate(attrs)
-        user = self.user
-        # Add user details to the response, using UUID from profile
-        data['user'] = {
-            'uuid': str(user.profile.uuid) if hasattr(user, 'profile') else None,
-            'email': user.email,
-            'role': getattr(user.profile, 'role', None) if hasattr(user, 'profile') else None,
-            'is_active': user.is_active,
-        }
-        return data
+        try:
+            from django.contrib.auth import authenticate
+            email = attrs.get('email')
+            password = attrs.get('password')
+            if not email or not password:
+                raise serializers.ValidationError({'message': 'Email and password are required.'})
+            user = authenticate(request=self.context.get('request'), username=email, password=password)
+            if user is None:
+                # Check if user exists for better error
+                from users.models import User
+                try:
+                    user_obj = User.objects.get(email=email)
+                    if not user_obj.check_password(password):
+                        raise serializers.ValidationError({'message': 'Invalid password.'})
+                    if not user_obj.is_active:
+                        raise serializers.ValidationError({'message': 'User account is inactive.'})
+                    if hasattr(user_obj, 'profile') and getattr(user_obj.profile, 'blocked', False):
+                        raise serializers.ValidationError({'message': 'User account is blocked.'})
+                except User.DoesNotExist:
+                    raise serializers.ValidationError({'message': 'User with this email does not exist.'})
+                raise serializers.ValidationError({'message': 'Authentication failed.'})
+            if not user.is_active:
+                raise serializers.ValidationError({'message': 'User account is inactive.'})
+            if hasattr(user, 'profile') and getattr(user.profile, 'blocked', False):
+                raise serializers.ValidationError({'message': 'User account is blocked.'})
+            data = super().validate(attrs)
+            data['user'] = {
+                'uuid': str(user.profile.uuid) if hasattr(user, 'profile') else None,
+                'email': user.email,
+                'role': getattr(user.profile, 'role', None) if hasattr(user, 'profile') else None,
+                'is_active': user.is_active,
+            }
+            return data
+        except Exception as e:
+            import traceback
+            print('LOGIN ERROR:', traceback.format_exc())
+            raise serializers.ValidationError({'message': f'Login failed: {str(e)}'})
 
 from rest_framework import serializers
 from users.models import User
@@ -25,7 +52,7 @@ from .models import UserProfile
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ('role', 'uuid')
+        fields = ('role', 'uuid', 'blocked')
 
 class UserDetailSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(read_only=True)
@@ -93,9 +120,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             data['uuid'] = str(profile.uuid)
             data['latitude'] = profile.latitude
             data['longitude'] = profile.longitude
+            data['blocked'] = profile.blocked
         else:
             data['role'] = None
             data['uuid'] = None
             data['latitude'] = None
             data['longitude'] = None
+            data['blocked'] = None
         return data

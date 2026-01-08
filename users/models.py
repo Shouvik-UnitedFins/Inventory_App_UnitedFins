@@ -36,12 +36,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 # UserProfile model should be separate
+
 class UserProfile(models.Model):
 	ROLE_CHOICES = [
 		("super_admin", "Super Admin"),
 		("admin", "Admin"),
-		("store_keeper", "Store Keeper"),
-		("inventory_manager", "Inventory Manager"),
+		("storekeeper", "Store Keeper"),
+		("inventorymanager", "Inventory Manager"),
 		("requester", "Requester"),
 		("vendor", "Vendor"),
 	]
@@ -54,6 +55,7 @@ class UserProfile(models.Model):
 	phone_number = models.CharField(max_length=20, blank=True)
 	latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 	longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+	blocked = models.BooleanField(default=False)
 
 	def __str__(self):
 		return f"{self.user.email} ({self.get_role_display()})"
