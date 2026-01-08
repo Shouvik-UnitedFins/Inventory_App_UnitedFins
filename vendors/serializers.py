@@ -5,7 +5,7 @@ import re
 class VendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
-        fields = '__all__'
+        fields = ['uuid', 'vendorName', 'phone', 'email', 'fullAddress', 'pincode', 'city', 'GSTN', 'vendorType', 'rating', 'plantId', 'isActive', 'created_At', 'updated_At']
 
     def validate_phone(self, value):
         if value and not re.match(r'^[0-9]{10,15}$', value):
@@ -18,7 +18,8 @@ class VendorSerializer(serializers.ModelSerializer):
         return value
 
     def validate_GSTN(self, value):
-        GSTN_REGEX = r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$'
+        # Updated GSTN pattern to be more flexible
+        GSTN_REGEX = r'^[0-9]{2}[A-Z]{3,5}[0-9A-Z]{1,4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$'
         if value and not re.match(GSTN_REGEX, value):
             raise serializers.ValidationError("GSTN must be a valid Indian GSTN number.")
         return value
