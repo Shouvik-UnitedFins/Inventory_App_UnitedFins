@@ -181,12 +181,38 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:5500",     # Live Server port
+    "http://127.0.0.1:5500",     # Live Server port
+    "http://localhost:8080",     # Common development port
+    "http://127.0.0.1:8080",     # Common development port
     "https://dev.inventory.iniserve.com",  # Your CloudPanel domain
     "http://dev.inventory.iniserve.com",   # HTTP version
     # Add your frontend domain here if different
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Additional CORS settings for development
+CORS_ALLOW_ALL_ORIGINS = False  # Set to True only in development if needed
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Security settings for production
 if not DEBUG:
