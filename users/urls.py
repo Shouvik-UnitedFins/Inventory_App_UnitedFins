@@ -9,9 +9,8 @@ from .views import CustomTokenRefreshView
 from rest_framework.routers import SimpleRouter
 
 # Use a router that supports UUIDs in the path
-from rest_framework.routers import SimpleRouter
 router = SimpleRouter()
-router.register(r'users', UserViewSet, basename='user')
+router.register(r'', UserViewSet, basename='user')
 
 urlpatterns = [
     path('register/admin/', AdminRegistrationView.as_view(), name='admin-register'),  # Public admin registration

@@ -22,6 +22,7 @@ class VendorViewSet(viewsets.ModelViewSet):
     serializer_class = VendorSerializer
     permission_classes = [permissions.IsAdminUser]  # Only admin can access
     lookup_field = 'uuid'
+    lookup_url_kwarg = 'id'  # URL parameter name
 
     def list(self, request, *args, **kwargs):
         """List all vendors with beautiful response format."""

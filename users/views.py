@@ -143,6 +143,7 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 	serializer_class = UserDetailSerializer
 	permission_classes = [IsAuthenticated]
 	lookup_field = 'profile__uuid'
+	lookup_url_kwarg = 'id'  # URL parameter name
 	lookup_value_regex = '[0-9a-fA-F-]+'
 	filter_backends = [DjangoFilterBackend]
 	filterset_fields = ['profile__role']

@@ -80,8 +80,8 @@ def home_view(request):
             <div class="api-links">
                 <a href="/swagger/" class="api-link">📚 API Documentation</a>
                 <a href="/admin/" class="api-link">🔧 Admin Panel</a>
-                <a href="/api/categories/" class="api-link">📋 Categories API</a>
-                <a href="/api/vendors/" class="api-link">🏢 Vendors API</a>
+                <a href="/categories/" class="api-link">📋 Categories API</a>
+                <a href="/vendors/" class="api-link">🏢 Vendors API</a>
             </div>
         </div>
     </body>
@@ -94,9 +94,9 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 urlpatterns = [
     path('', home_view, name='home'),
     path('admin/', admin.site.urls),
-    path('api/', include('vendors.urls')),
-    path('api/users/', include('users.urls')),
-    path('api/categories/', include('categories.urls')),
+    path('vendors/', include('vendors.urls')),
+    path('users/', include('users.urls')),
+    path('categories/', include('categories.urls')),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
