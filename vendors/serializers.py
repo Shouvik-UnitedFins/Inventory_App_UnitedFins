@@ -5,7 +5,11 @@ import re
 class VendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
-        fields = ['uuid', 'vendorName', 'phone', 'email', 'fullAddress', 'pincode', 'city', 'GSTN', 'vendorType', 'rating', 'plantId', 'isActive', 'created_At', 'updated_At']
+        fields = [
+            'uuid', 'vendorName', 'phone', 'email', 'fullAddress', 'pincode', 'city', 
+            'GSTN', 'vendorType', 'quality_price_rating', 'delivery_time_rating', 
+            'overall_avg_rating', 'rating', 'plantId', 'isActive', 'created_At', 'updated_At'
+        ]
 
     def validate_phone(self, value):
         if value and not re.match(r'^[0-9]{10,15}$', value):
@@ -28,4 +32,31 @@ class VendorSerializer(serializers.ModelSerializer):
     def validate_rating(self, value):
         if value and (value < 1 or value > 5):
             raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value
+
+    def validate_quality_price_rating(self, value):
+        valid_ratings = [
+            '5.0 - Excellent', '4.5 - Very Good', '4.0 - Good', 
+            '3.5 - Average', '3.0 - Below Average', '2.0 - Poor', 'Not Rated'
+        ]
+        if value and value not in valid_ratings:
+            raise serializers.ValidationError(f"Invalid rating. Must be one of: {valid_ratings}")
+        return value
+
+    def validate_delivery_time_rating(self, value):
+        valid_ratings = [
+            '5.0 - Excellent', '4.5 - Very Good', '4.0 - Good', 
+            '3.5 - Average', '3.0 - Below Average', '2.0 - Poor', 'Not Rated'
+        ]
+        if value and value not in valid_ratings:
+            raise serializers.ValidationError(f"Invalid rating. Must be one of: {valid_ratings}")
+        return value
+
+    def validate_overall_avg_rating(self, value):
+        valid_ratings = [
+            '5.0 - Excellent', '4.5 - Very Good', '4.0 - Good', 
+            '3.5 - Average', '3.0 - Below Average', '2.0 - Poor', 'Not Rated'
+        ]
+        if value and value not in valid_ratings:
+            raise serializers.ValidationError(f"Invalid rating. Must be one of: {valid_ratings}")
         return value

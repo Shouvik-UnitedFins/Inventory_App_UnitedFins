@@ -56,6 +56,40 @@ class UserProfile(models.Model):
 	latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 	longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 	blocked = models.BooleanField(default=False)
+	
+	# Two-Factor Authentication fields
+	is_2fa_enabled = models.BooleanField(default=False, help_text="Whether 2FA is enabled for this user")
+	totp_secret = models.CharField(max_length=32, blank=True, null=True, help_text="TOTP secret for Google Authenticator")
+	last_otp_used = models.CharField(max_length=6, blank=True, null=True, help_text="Last used OTP to prevent replay attacks")
+	otp_backup_codes = models.JSONField(default=list, blank=True, help_text="Backup codes for 2FA recovery")
 
 	def __str__(self):
 		return f"{self.user.email} ({self.get_role_display()})"
+
+
+# OTP Model for SMS-based 2FA
+class PasswordResetOTP(models.Model):
+	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+	otp_code = models.CharField(max_length=6)
+	is_used = models.BooleanField(default=False)
+	created_at = models.DateTimeField(auto_now_add=True)
+	expires_at = models.DateTimeField()
+	request_type = models.CharField(max_length=20, choices=[
+		('password_reset', 'Password Reset'),
+		('login_verification', 'Login Verification'),
+	], default='password_reset')
+	
+	class Meta:
+		ordering = ['-created_at']
+	
+	def __str__(self):
+		return f"OTP for {self.user.email} - {self.otp_code} ({'Used' if self.is_used else 'Active'})"
+	
+	def is_expired(self):
+		from django.utils import timezone
+		return timezone.now() > self.expires_at
+	
+	@classmethod
+	def generate_otp(cls):
+		import random
+		return str(random.randint(100000, 999999))

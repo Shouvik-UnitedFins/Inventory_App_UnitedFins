@@ -348,6 +348,7 @@ class MeView(GenericAPIView):
 		})
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import UserProfile
 from .serializers import UserRegistrationSerializer, AdminRegistrationSerializer
@@ -411,3 +412,353 @@ class UserRegistrationView(generics.CreateAPIView):
 				'data': response.data
 			}, status=response.status_code)
 		return response
+
+# Two-Factor Authentication Views for Password Reset
+from django.utils import timezone
+from datetime import timedelta
+from .models import PasswordResetOTP
+import random
+
+@extend_schema(
+	tags=["2FA"],
+	summary="Request OTP for Password Reset (2FA)",
+	description="""Request OTP via SMS or Google Authenticator for secure password reset.
+	
+	Supports both SMS OTP and Google Authenticator TOTP.
+	OTP expires in 10 minutes for security.
+	"""
+)
+class RequestPasswordResetOTPView(generics.GenericAPIView):
+	permission_classes = []  # No authentication required
+	
+	class RequestOTPSerializer(serializers.Serializer):
+		email = serializers.EmailField()
+		otp_method = serializers.ChoiceField(choices=['sms', 'authenticator'], default='sms')
+		
+	serializer_class = RequestOTPSerializer
+	
+	def post(self, request):
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		
+		email = serializer.validated_data['email']
+		otp_method = serializer.validated_data['otp_method']
+		
+		try:
+			from django.contrib.auth import get_user_model
+			User = get_user_model()
+			user = User.objects.get(email=email)
+			
+			if not hasattr(user, 'profile'):
+				return Response({
+					'message': 'User profile not found',
+					'data': None
+				}, status=status.HTTP_404_NOT_FOUND)
+			
+			profile = user.profile
+			
+			if otp_method == 'sms':
+				# SMS OTP Method
+				if not profile.phone_number:
+					return Response({
+						'message': 'Phone number not registered for this account',
+						'data': None
+					}, status=status.HTTP_400_BAD_REQUEST)
+				
+				# Generate 6-digit OTP
+				otp_code = PasswordResetOTP.generate_otp()
+				
+				# Create OTP record
+				otp_record = PasswordResetOTP.objects.create(
+					user=user,
+					otp_code=otp_code,
+					expires_at=timezone.now() + timedelta(minutes=10),
+					request_type='password_reset'
+				)
+				
+				# In production, send SMS here
+				# send_sms(profile.phone_number, f"Your password reset OTP: {otp_code}")
+				
+				return Response({
+					'message': 'OTP sent to your registered phone number',
+					'data': {
+						'method': 'sms',
+						'phone_masked': f"***{profile.phone_number[-4:]}" if len(profile.phone_number) > 4 else "***",
+						'expires_in': '10 minutes',
+						'otp_for_dev': otp_code  # Remove in production
+					}
+				}, status=status.HTTP_200_OK)
+			
+			elif otp_method == 'authenticator':
+				# Google Authenticator Method
+				if not profile.is_2fa_enabled or not profile.totp_secret:
+					return Response({
+						'message': '2FA not enabled for this account. Please contact administrator.',
+						'data': None
+					}, status=status.HTTP_400_BAD_REQUEST)
+				
+				return Response({
+					'message': 'Enter the 6-digit code from your Google Authenticator app',
+					'data': {
+						'method': 'authenticator',
+						'expires_in': '30 seconds (TOTP)',
+						'backup_codes_available': len(profile.otp_backup_codes) > 0
+					}
+				}, status=status.HTTP_200_OK)
+			
+		except User.DoesNotExist:
+			# Return same response for security (don't reveal if email exists)
+			return Response({
+				'message': 'If the email exists, OTP will be sent',
+				'data': {
+					'method': otp_method,
+					'expires_in': '10 minutes'
+				}
+			}, status=status.HTTP_200_OK)
+
+@extend_schema(
+	tags=["2FA"],
+	summary="Verify OTP and Reset Password",
+	description="""Verify OTP (SMS or Google Authenticator) and reset password.
+	
+	Supports both SMS OTP and Google Authenticator TOTP codes.
+	Also supports backup codes for emergency access.
+	"""
+)
+class VerifyOTPResetPasswordView(generics.GenericAPIView):
+	permission_classes = []  # No authentication required
+	
+	class VerifyOTPSerializer(serializers.Serializer):
+		email = serializers.EmailField()
+		otp_code = serializers.CharField(min_length=6, max_length=6)
+		new_password = serializers.CharField(min_length=6)
+		confirm_password = serializers.CharField(min_length=6)
+		is_backup_code = serializers.BooleanField(default=False)
+		
+		def validate(self, attrs):
+			if attrs['new_password'] != attrs['confirm_password']:
+				raise serializers.ValidationError("Passwords do not match")
+			return attrs
+			
+	serializer_class = VerifyOTPSerializer
+	
+	def post(self, request):
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		
+		email = serializer.validated_data['email']
+		otp_code = serializer.validated_data['otp_code']
+		new_password = serializer.validated_data['new_password']
+		is_backup_code = serializer.validated_data['is_backup_code']
+		
+		try:
+			from django.contrib.auth import get_user_model
+			User = get_user_model()
+			user = User.objects.get(email=email)
+			profile = user.profile
+			
+			if is_backup_code:
+				# Verify backup code
+				if otp_code in profile.otp_backup_codes:
+					# Remove used backup code
+					profile.otp_backup_codes.remove(otp_code)
+					profile.save()
+					
+					# Reset password
+					user.set_password(new_password)
+					user.save()
+					
+					return Response({
+						'message': 'Password reset successful using backup code. Please login with your new password.',
+						'data': {
+							'backup_codes_remaining': len(profile.otp_backup_codes)
+						}
+					}, status=status.HTTP_200_OK)
+				else:
+					return Response({
+						'message': 'Invalid backup code',
+						'data': None
+					}, status=status.HTTP_400_BAD_REQUEST)
+			
+			# Check SMS OTP
+			sms_otp = PasswordResetOTP.objects.filter(
+				user=user,
+				otp_code=otp_code,
+				is_used=False,
+				request_type='password_reset'
+			).first()
+			
+			if sms_otp and not sms_otp.is_expired():
+				# Valid SMS OTP
+				sms_otp.is_used = True
+				sms_otp.save()
+				
+				# Reset password
+				user.set_password(new_password)
+				user.save()
+				
+				return Response({
+					'message': 'Password reset successful via SMS OTP. Please login with your new password.',
+					'data': None
+				}, status=status.HTTP_200_OK)
+			
+			# Check Google Authenticator TOTP
+			if profile.is_2fa_enabled and profile.totp_secret:
+				import pyotp
+				totp = pyotp.TOTP(profile.totp_secret)
+				
+				if totp.verify(otp_code) and profile.last_otp_used != otp_code:
+					# Valid TOTP and not reused
+					profile.last_otp_used = otp_code
+					profile.save()
+					
+					# Reset password
+					user.set_password(new_password)
+					user.save()
+					
+					return Response({
+						'message': 'Password reset successful via Google Authenticator. Please login with your new password.',
+						'data': None
+					}, status=status.HTTP_200_OK)
+			
+			return Response({
+				'message': 'Invalid or expired OTP',
+				'data': None
+			}, status=status.HTTP_400_BAD_REQUEST)
+			
+		except User.DoesNotExist:
+			return Response({
+				'message': 'Invalid OTP',
+				'data': None
+			}, status=status.HTTP_400_BAD_REQUEST)
+		except ImportError:
+			return Response({
+				'message': 'Google Authenticator not properly configured',
+				'data': None
+			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@extend_schema(
+	tags=["2FA"],
+	summary="Enable 2FA (Google Authenticator)",
+	description="""Enable Google Authenticator for the logged-in user.
+	
+	Returns QR code URL for easy setup in Google Authenticator app.
+	Also generates backup codes for emergency access.
+	"""
+)
+class Enable2FAView(generics.GenericAPIView):
+	permission_classes = [IsAuthenticated]
+	
+	def post(self, request):
+		try:
+			import pyotp
+			import qrcode
+			from io import BytesIO
+			import base64
+			
+			user = request.user
+			profile = user.profile
+			
+			# Generate TOTP secret
+			secret = pyotp.random_base32()
+			
+			# Create TOTP object
+			totp = pyotp.TOTP(secret)
+			
+			# Generate QR code URL
+			qr_url = totp.provisioning_uri(
+				name=user.email,
+				issuer_name="United Fins Inventory"
+			)
+			
+			# Generate backup codes
+			backup_codes = [
+				''.join([str(random.randint(0, 9)) for _ in range(8)])
+				for _ in range(10)
+			]
+			
+			# Save to profile (don't enable yet - wait for verification)
+			profile.totp_secret = secret
+			profile.otp_backup_codes = backup_codes
+			profile.save()
+			
+			return Response({
+				'message': '2FA setup initialized. Scan QR code with Google Authenticator and verify.',
+				'data': {
+					'qr_code_url': qr_url,
+					'secret_key': secret,
+					'backup_codes': backup_codes,
+					'setup_instructions': [
+						"1. Install Google Authenticator app",
+						"2. Scan the QR code or enter the secret key manually",
+						"3. Enter the 6-digit code to verify setup",
+						"4. Save backup codes in a secure place"
+					]
+				}
+			}, status=status.HTTP_200_OK)
+			
+		except ImportError:
+			return Response({
+				'message': 'Please install pyotp library: pip install pyotp',
+				'data': None
+			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@extend_schema(
+	tags=["2FA"],
+	summary="Verify and Complete 2FA Setup",
+	description="""Verify Google Authenticator setup by entering 6-digit code.
+	
+	This completes the 2FA setup and enables 2FA for the user.
+	"""
+)
+class Verify2FASetupView(generics.GenericAPIView):
+	permission_classes = [IsAuthenticated]
+	
+	class Verify2FASerializer(serializers.Serializer):
+		totp_code = serializers.CharField(min_length=6, max_length=6)
+		
+	serializer_class = Verify2FASerializer
+	
+	def post(self, request):
+		try:
+			import pyotp
+			
+			serializer = self.get_serializer(data=request.data)
+			serializer.is_valid(raise_exception=True)
+			
+			totp_code = serializer.validated_data['totp_code']
+			user = request.user
+			profile = user.profile
+			
+			if not profile.totp_secret:
+				return Response({
+					'message': 'No 2FA setup in progress. Please initialize 2FA setup first.',
+					'data': None
+				}, status=status.HTTP_400_BAD_REQUEST)
+			
+			# Verify TOTP code
+			totp = pyotp.TOTP(profile.totp_secret)
+			
+			if totp.verify(totp_code):
+				# Enable 2FA
+				profile.is_2fa_enabled = True
+				profile.save()
+				
+				return Response({
+					'message': '2FA enabled successfully! Your account is now protected with two-factor authentication.',
+					'data': {
+						'backup_codes_count': len(profile.otp_backup_codes),
+						'reminder': 'Save your backup codes in a secure place'
+					}
+				}, status=status.HTTP_200_OK)
+			else:
+				return Response({
+					'message': 'Invalid verification code. Please try again.',
+					'data': None
+				}, status=status.HTTP_400_BAD_REQUEST)
+				
+		except ImportError:
+			return Response({
+				'message': 'Google Authenticator not properly configured',
+				'data': None
+			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
