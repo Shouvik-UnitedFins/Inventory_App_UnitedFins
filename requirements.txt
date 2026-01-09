@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
-﻿# Django + REST
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
+# Django + REST
 Django==5.0.3
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.2.2
@@ -14,32 +11,14 @@ daphne==4.1.2
 gunicorn==21.2.0
 celery==5.4.0
 redis==5.2.1
-<<<<<<< HEAD
-django==5.0.3
-djangorestframework==3.14.0
-djangorestframework-simplejwt==5.2.2
-django-cors-headers==4.3.1
-django-filter==24.1
-drf-spectacular==0.29.0
-drf-yasg==1.21.7
-djoser==2.2.0
-daphne==4.1.2
-gunicorn==21.2.0
-redis==5.2.1
-celery==5.4.0
-=======
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
 django-celery-beat==2.7.0
 django-crontab==0.7.1
 python-dotenv==1.0.0
 requests==2.32.3
 aiohttp==3.11.18
 aiofiles==23.2.0
-<<<<<<< HEAD
-=======
 
 # Utilities
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
 attrs==25.3.0
 certifi==2025.4.26
 charset-normalizer==3.4.2
@@ -50,11 +29,6 @@ PyJWT==2.10.1
 protobuf==5.29.4
 psutil==5.9.8
 SQLAlchemy==2.0.23
-<<<<<<< HEAD
-pandas==2.2.3
-scipy==1.13.1
-=======
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
 lxml==5.4.0
 beautifulsoup4==4.12.3
 Jinja2==3.1.3
@@ -63,78 +37,15 @@ webcolors==1.13
 websocket-client==1.8.0
 websockets==15.0
 six==1.17.0
-<<<<<<< HEAD
-sniffio==1.3.1
-Jinja2==3.1.3
-MarkupSafe==2.1.5
-marshmallow==3.26.1
-lxml==5.4.0
-beautifulsoup4==4.12.3
-Markdown==3.5.2
-simplejson==3.19.2
-inflection==0.5.1
-
-# Data / analytics
-numpy==1.26.4
-pandas==2.2.3
-scikit-learn==1.5.0
-scipy==1.13.1
-joblib==1.3.2
-mpmath==1.3.0
-networkx==3.2.1
-tenacity==8.5.0
-tqdm==4.67.1
-safetensors==0.4.2
-regex==2023.12.25
-propcache==0.3.1
-packaging==25.0
-
-# Utilities
-aiofiles==23.2.0
-six==1.17.0
-sniffio==1.3.1
-psutil==5.9.8
-blinker==1.9.0
-=======
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
 blinker==1.9.0
 wrapt==1.17.2
 zope.interface==7.2
 zstandard==0.23.0
-<<<<<<< HEAD
-webcolors==1.13
-websocket-client==1.8.0
-websockets==15.0
 Babel==2.15.0
 colorama==0.4.6
-blinker==1.9.0
-pillow==11.2.1
-=======
-Babel==2.15.0
-colorama==0.4.6
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
 razorpay==1.4.2
 vine==5.1.0
 amqp==5.3.1
 billiard==4.2.1
-<<<<<<< HEAD
-=======
 
 # Data / analytics (Optional, can remove for faster deploy)
-numpy==1.26.4
-pandas==2.2.3
-scikit-learn==1.5.0
-scipy==1.13.1
-joblib==1.3.2
-mpmath==1.3.0
-networkx==3.2.1
-tenacity==8.5.0
-tqdm==4.67.1
-safetensors==0.4.2
-regex==2023.12.25
-propcache==0.3.1
-packaging==25.0
-inflection==0.5.1
-Markdown==3.5.2
-simplejson==3.19.2
->>>>>>> 6a4ff1f (Update requirements.txt and add render.yaml for Render deployment)
