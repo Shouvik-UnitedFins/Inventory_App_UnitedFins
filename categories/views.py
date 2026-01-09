@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Category
 from .serializers import CategorySerializer
+from users.permissions import IsAdminRole
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 
 @extend_schema_view(
@@ -54,7 +55,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """API endpoints for managing categories."""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAdminUser]  # Match vendor permissions
+    permission_classes = [IsAdminRole]  # Use custom admin role permission
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['categoryName']
     lookup_field = 'id'  # Using id (UUID primary key) as lookup field

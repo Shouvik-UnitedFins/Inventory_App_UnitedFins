@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions
 from .models import Vendor
 from .serializers import VendorSerializer
+from users.permissions import IsAdminRole
 
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,7 +21,7 @@ class VendorViewSet(viewsets.ModelViewSet):
     """API endpoints for managing vendors."""
     queryset = Vendor.objects.all()
     serializer_class = VendorSerializer
-    permission_classes = [permissions.IsAdminUser]  # Only admin can access
+    permission_classes = [IsAdminRole]  # Use custom admin role permission
     lookup_field = 'uuid'
     lookup_url_kwarg = 'id'  # URL parameter name
 

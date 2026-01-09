@@ -56,9 +56,45 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserDetailSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(read_only=True)
+    status = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ('email', 'is_active', 'profile')
+        fields = ('email', 'is_active', 'profile', 'status')
+    
+    def get_status(self, obj):
+        """Return clear status information for the user"""
+        profile = getattr(obj, 'profile', None)
+        
+        if not profile:
+            return {
+                'active': obj.is_active,
+                'blocked': False,
+                'status_text': 'No Profile' if not obj.is_active else 'Active (No Profile)',
+                'can_login': False
+            }
+        
+        blocked = profile.blocked
+        active = obj.is_active
+        
+        # Determine overall status
+        if not active:
+            status_text = 'Inactive'
+            can_login = False
+        elif blocked:
+            status_text = 'Blocked'
+            can_login = False
+        else:
+            status_text = 'Active'
+            can_login = True
+            
+        return {
+            'active': active,
+            'blocked': blocked,
+            'status_text': status_text,
+            'can_login': can_login,
+            'role': profile.role if profile else None
+        }
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
