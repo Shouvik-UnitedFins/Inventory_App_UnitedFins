@@ -18,6 +18,12 @@ requests==2.32.3
 aiohttp==3.11.18
 aiofiles==23.2.0
 
+# Database support
+dj-database-url==2.1.0
+psycopg2-binary==2.9.9
+
+# Production utilities
+
 # Utilities
 attrs==25.3.0
 certifi==2025.4.26
