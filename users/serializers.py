@@ -74,20 +74,105 @@ class UserPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
-
+# Public registration for Admin users (entry point of hierarchy)
+class AdminRegistrationSerializer(serializers.ModelSerializer):
     name = serializers.CharField(write_only=True)
     email = serializers.EmailField(write_only=True)
     phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True)
-    role = serializers.ChoiceField(choices=UserProfile.ROLE_CHOICES, write_only=True)
+    password = serializers.CharField(
+        write_only=True, 
+        min_length=8,
+        error_messages={
+            'min_length': 'Password must be at least 8 characters long.'
+        }
+    )
     latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
     longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
+    
+    class Meta:
+        model = User
+        fields = ('name', 'email', 'phone_number', 'password', 'latitude', 'longitude')
+    
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email already exists.")
+        return value
+    
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        name = validated_data.pop('name', '')
+        phone_number = validated_data.pop('phone_number', '')
+        latitude = validated_data.pop('latitude', None)
+        longitude = validated_data.pop('longitude', None)
+        
+        user = User.objects.create(email=validated_data['email'])
+        user.set_password(password)
+        user.save()
+        
+        # Always create admin role for this endpoint
+        profile = UserProfile.objects.create(user=user, role='admin')
+        profile.name = name
+        profile.phone_number = phone_number
+        profile.latitude = latitude
+        profile.longitude = longitude
+        profile.save()
+        
+        return user
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        profile = getattr(instance, 'profile', None)
+        if profile:
+            data['role'] = profile.role
+            data['uuid'] = str(profile.uuid)
+            data['latitude'] = profile.latitude
+            data['longitude'] = profile.longitude
+            data['blocked'] = profile.blocked
+        return data
 
+
+# Protected registration for other roles (admin only - excludes admin and super_admin)
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    # Define allowed roles for this endpoint (excluding admin and super_admin)
+    ALLOWED_ROLES = [
+        ('storekeeper', 'Store Keeper'),
+        ('inventorymanager', 'Inventory Manager'), 
+        ('requester', 'Requester'),
+        ('vendor', 'Vendor'),
+    ]
+    
+    name = serializers.CharField(write_only=True)
+    email = serializers.EmailField(write_only=True)
+    phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    password = serializers.CharField(
+        write_only=True, 
+        min_length=8,
+        error_messages={
+            'min_length': 'Password must be at least 8 characters long.'
+        }
+    )
+    role = serializers.ChoiceField(choices=ALLOWED_ROLES, write_only=True)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
 
     class Meta:
         model = User
         fields = ('name', 'email', 'phone_number', 'password', 'role', 'latitude', 'longitude')
+    
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email already exists.")
+        return value
+    
+    def validate_role(self, value):
+        # Ensure only allowed roles can be created through this endpoint
+        allowed_role_keys = [role[0] for role in self.ALLOWED_ROLES]
+        if value not in allowed_role_keys:
+            raise serializers.ValidationError(
+                f"Invalid role. Allowed roles: {', '.join(allowed_role_keys)}. "
+                "Admin users must use the public admin registration endpoint."
+            )
+        return value
 
     def create(self, validated_data):
         role = validated_data.pop('role')
@@ -96,20 +181,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         phone_number = validated_data.pop('phone_number', '')
         latitude = validated_data.pop('latitude', None)
         longitude = validated_data.pop('longitude', None)
+        
         user = User.objects.create(email=validated_data['email'])
         user.set_password(password)
         user.save()
+        
         profile = UserProfile.objects.create(user=user, role=role)
-        # Optionally save extra fields to profile if you add them to the model
-        if hasattr(profile, 'name'):
-            profile.name = name
-        if hasattr(profile, 'phone_number'):
-            profile.phone_number = phone_number
-        if hasattr(profile, 'latitude'):
-            profile.latitude = latitude
-        if hasattr(profile, 'longitude'):
-            profile.longitude = longitude
+        profile.name = name
+        profile.phone_number = phone_number
+        profile.latitude = latitude
+        profile.longitude = longitude
         profile.save()
+        
         return user
 
     def to_representation(self, instance):

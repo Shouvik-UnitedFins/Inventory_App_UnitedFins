@@ -20,6 +20,16 @@ REST_FRAMEWORK = {
     ),
     'EXCEPTION_HANDLER': 'python_server.exception_handler.custom_exception_handler',
 }
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Inventory Application',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+    },
+}
 """
 Django settings for python_server project.
 

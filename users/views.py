@@ -89,10 +89,10 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 	)
 	@action(detail=False, methods=['patch'], url_path='block', permission_classes=[IsAuthenticated])
 	def block(self, request):
-		"""Block a user by email or name (admin/super_admin only)."""
+		"""Block a user by email or name (admin only)."""
 		current_user = request.user
-		if not hasattr(current_user, 'profile') or current_user.profile.role not in ['admin', 'super_admin']:
-			return Response({'message': 'You do not have permission to block users.', 'data': None}, status=status.HTTP_403_FORBIDDEN)
+		if not hasattr(current_user, 'profile') or current_user.profile.role != 'admin':
+			return Response({'message': 'You do not have permission to block users. Only admin can perform this action.', 'data': None}, status=status.HTTP_403_FORBIDDEN)
 		identifier = request.data.get('email') or request.data.get('name')
 		if not identifier:
 			return Response({'message': 'Provide email or name to block user.', 'data': None}, status=status.HTTP_400_BAD_REQUEST)
@@ -117,10 +117,10 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 	)
 	@action(detail=False, methods=['patch'], url_path='unblock', permission_classes=[IsAuthenticated])
 	def unblock(self, request):
-		"""Unblock a user by email or name (admin/super_admin only)."""
+		"""Unblock a user by email or name (admin only)."""
 		current_user = request.user
-		if not hasattr(current_user, 'profile') or current_user.profile.role not in ['admin', 'super_admin']:
-			return Response({'message': 'You do not have permission to unblock users.', 'data': None}, status=status.HTTP_403_FORBIDDEN)
+		if not hasattr(current_user, 'profile') or current_user.profile.role != 'admin':
+			return Response({'message': 'You do not have permission to unblock users. Only admin can perform this action.', 'data': None}, status=status.HTTP_403_FORBIDDEN)
 		identifier = request.data.get('email') or request.data.get('name')
 		if not identifier:
 			return Response({'message': 'Provide email or name to unblock user.', 'data': None}, status=status.HTTP_400_BAD_REQUEST)
@@ -178,11 +178,11 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 		current_user = self.request.user
 		if hasattr(current_user, 'profile'):
 			current_role = current_user.profile.role
-			if current_role == 'super_admin':
+			if current_role == 'admin':
+				# Admin can see all users (hierarchy starts from admin)
 				return queryset
-			elif current_role == 'admin':
-				return queryset.exclude(profile__role='super_admin')
 			else:
+				# Other roles can only see themselves
 				return queryset.filter(id=current_user.id)
 		return queryset.filter(id=current_user.id)
 
@@ -265,9 +265,9 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retriev
 			print(f"DEBUG: Request data: {request.data}")
 			print(f"DEBUG: pk parameter: {pk}")
 			
-			if not hasattr(current_user, 'profile') or current_user.profile.role not in ['admin', 'super_admin']:
+			if not hasattr(current_user, 'profile') or current_user.profile.role != 'admin':
 				return Response({
-					'message': 'You do not have permission to set passwords for other users. Only admins can perform this action.',
+					'message': 'You do not have permission to set passwords for other users. Only admin can perform this action.',
 					'data': None
 				}, status=status.HTTP_403_FORBIDDEN)
 			
@@ -349,28 +349,64 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from .models import UserProfile
-from .serializers import UserRegistrationSerializer
+from .serializers import UserRegistrationSerializer, AdminRegistrationSerializer
 
 class IsAdminUserCustom(permissions.BasePermission):
-	       def has_permission(self, request, view):
-		       return (
-			   request.user.is_authenticated and 
-			   hasattr(request.user, 'profile') and 
-			   request.user.profile.role in ['admin', 'super_admin']
-		       )
+	def has_permission(self, request, view):
+		return (
+			request.user.is_authenticated and 
+			hasattr(request.user, 'profile') and 
+			request.user.profile.role in ['admin']
+		)
 
-@extend_schema(tags=["Auth"])
-class UserRegistrationView(generics.CreateAPIView):
+# Public registration for Admin users (no authentication required)
+@extend_schema(
+	tags=["Auth"],
+	summary="Register Admin User (Public)",
+	description="""Public endpoint to register admin users. This is the entry point of the hierarchy.
+	
+	Admin users can register directly without requiring super_admin approval.
+	Once registered, admin users can create other role users through the protected registration endpoint.
+	
+	Hierarchy: Admin → (store_keeper, inventory_manager, requester, vendor)
+	"""
+)
+class AdminRegistrationView(generics.CreateAPIView):
 	from django.contrib.auth import get_user_model
 	queryset = get_user_model().objects.all()
-	serializer_class = UserRegistrationSerializer
-	permission_classes = [IsAdminUserCustom]
+	serializer_class = AdminRegistrationSerializer
+	permission_classes = []  # No authentication required
 
 	def create(self, request, *args, **kwargs):
 		response = super().create(request, *args, **kwargs)
 		if response.status_code == 201:
 			return Response({
-				'message': 'Registration successful',
+				'message': 'Admin registration successful! You can now login and manage other users.',
+				'data': response.data
+			}, status=response.status_code)
+		return response
+
+# Protected registration for other roles (admin only)
+@extend_schema(
+	tags=["Auth"],
+	summary="Register Users (Admin Only)",
+	description="""Protected endpoint for admins to register other role users.
+	
+	Only admin users can create: store_keeper, inventory_manager, requester, vendor
+	Super_admin is not involved in user creation - the hierarchy starts from admin.
+	"""
+)
+class UserRegistrationView(generics.CreateAPIView):
+	from django.contrib.auth import get_user_model
+	queryset = get_user_model().objects.all()
+	serializer_class = UserRegistrationSerializer
+	permission_classes = [IsAdminUserCustom]  # Only admin can create other users
+
+	def create(self, request, *args, **kwargs):
+		response = super().create(request, *args, **kwargs)
+		if response.status_code == 201:
+			return Response({
+				'message': 'User registration successful',
 				'data': response.data
 			}, status=response.status_code)
 		return response
