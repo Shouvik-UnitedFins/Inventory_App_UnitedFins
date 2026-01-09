@@ -78,11 +78,86 @@ def home_view(request):
             <h1>Hello United Fins!</h1>
             <p>Welcome to the Inventory Management System</p>
             <div class="api-links">
-                <a href="/swagger/" class="api-link">📚 API Documentation</a>
+                <a href="/api/" class="api-link">📊 API Documentation</a>
+                <a href="/swagger/" class="api-link">📚 Swagger UI</a>
                 <a href="/admin/" class="api-link">🔧 Admin Panel</a>
-                <a href="/categories/" class="api-link">📋 Categories API</a>
-                <a href="/vendors/" class="api-link">🏢 Vendors API</a>
+                <a href="/api/categories/" class="api-link">📋 Categories API</a>
+                <a href="/api/vendors/" class="api-link">🏢 Vendors API</a>
             </div>
+        </div>
+    </body>
+    </html>
+    """)
+
+# API Documentation view
+def api_docs_view(request):
+    return HttpResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>API Documentation - United Fins Inventory</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 2rem;
+                background: #f5f5f5;
+                color: #333;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 2rem;
+                padding: 2rem;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-radius: 10px;
+            }
+            .endpoint {
+                background: white;
+                padding: 1.5rem;
+                margin: 1rem 0;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .method {
+                display: inline-block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                color: white;
+                font-weight: bold;
+                margin-right: 0.5rem;
+            }
+            .get { background: #28a745; }
+            .post { background: #007bff; }
+            .put { background: #ffc107; color: #333; }
+            .delete { background: #dc3545; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🚀 United Fins Inventory API</h1>
+            <p>RESTful API for Inventory Management System</p>
+        </div>
+        
+        <div class="endpoint">
+            <h3><span class="method get">GET</span>/api/categories/</h3>
+            <p>Get all product categories</p>
+        </div>
+        
+        <div class="endpoint">
+            <h3><span class="method get">GET</span>/api/vendors/</h3>
+            <p>Get all vendors</p>
+        </div>
+        
+        <div class="endpoint">
+            <h3><span class="method get">GET</span>/api/users/</h3>
+            <p>Get user information (requires authentication)</p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="/swagger/" style="padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">📚 Full Swagger Documentation</a>
+            <a href="/" style="padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin-left: 1rem;">🏠 Home</a>
         </div>
     </body>
     </html>
@@ -94,9 +169,14 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 urlpatterns = [
     path('', home_view, name='home'),
     path('admin/', admin.site.urls),
-    path('vendors/', include('vendors.urls')),
-    path('users/', include('users.urls')),
-    path('categories/', include('categories.urls')),
+    
+    # API endpoints with /api/ prefix
+    path('api/', api_docs_view, name='api-docs'),
+    path('api/vendors/', include('vendors.urls')),
+    path('api/users/', include('users.urls')),
+    path('api/categories/', include('categories.urls')),
+    
+    # API Documentation endpoints
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
